@@ -133,7 +133,7 @@ def sample_z(shape=64, latent_dim=10, n_c=10, fix_class=-1, req_grad=False):  # 
     inplace操作是指将新值赋到原变量地址上的操作。
     """
     if (fix_class == -1):
-        zc_idx = zc_idx.random_(n_c).cuda() if cuda else zc_idx.random_(n_c)  # 用一个离散均匀分布来填充当前的张量。
+        zc_idx = zc_idx.random_(n_c).cuda() if cuda else zc_idx.random_(n_c)  # 用一个离散均匀分布来填充当前的张量。[from 0, to n_c]
         zc_FT = zc_FT.scatter_(1, zc_idx.unsqueeze(1), 1.)  # 用于one-hot编码 zc_idx扩展为2维 zc_FT也就生成了二维上的one-hot编码
         # zc_idx = torch.empty(shape, dtype=torch.long).random_(n_c).cuda()
         # zc_FT = Tensor(shape, n_c).fill_(0).scatter_(1, zc_idx.unsqueeze(1), 1.)
