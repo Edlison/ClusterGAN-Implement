@@ -17,7 +17,8 @@ except ImportError as e:
     print(e)
     raise ImportError
 
-
+global cuda
+cuda = True if torch.cuda.is_available() else False
 
 # Nan-avoiding logarithm
 def tlog(x):
@@ -75,7 +76,7 @@ def sample_z(shape=64, latent_dim=10, n_c=10, fix_class=-1, req_grad=False):
 
     assert (fix_class == -1 or (fix_class >= 0 and fix_class < n_c) ), "Requested class %i outside bounds."%fix_class
 
-    Tensor = torch.cuda.FloatTensor
+    Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
     
     # Sample noise as generator input, zn
     zn = Variable(Tensor(0.75*np.random.normal(0, 1, (shape, latent_dim))), requires_grad=req_grad)
@@ -86,7 +87,7 @@ def sample_z(shape=64, latent_dim=10, n_c=10, fix_class=-1, req_grad=False):
     zc_idx = torch.empty(shape, dtype=torch.long)
 
     if (fix_class == -1):
-        zc_idx = zc_idx.random_(n_c).cuda()
+        zc_idx = zc_idx.random_(n_c).cuda() if cuda else zc_idx.random_(n_c)
         zc_FT = zc_FT.scatter_(1, zc_idx.unsqueeze(1), 1.)
         #zc_idx = torch.empty(shape, dtype=torch.long).random_(n_c).cuda()
         #zc_FT = Tensor(shape, n_c).fill_(0).scatter_(1, zc_idx.unsqueeze(1), 1.)
@@ -94,8 +95,8 @@ def sample_z(shape=64, latent_dim=10, n_c=10, fix_class=-1, req_grad=False):
         zc_idx[:] = fix_class
         zc_FT[:, fix_class] = 1
 
-        zc_idx = zc_idx.cuda()
-        zc_FT = zc_FT.cuda()
+        zc_idx = zc_idx.cuda() if cuda else zc_idx
+        zc_FT = zc_FT.cuda() if cuda else zc_idx
 
     zc = Variable(zc_FT, requires_grad=req_grad)
 
@@ -117,18 +118,18 @@ def calc_gradient_penalty(netD, real_data, generated_data):
     # Calculate interpolation
     alpha = torch.rand(b_size, 1, 1, 1)
     alpha = alpha.expand_as(real_data)
-    alpha = alpha.cuda()
+    alpha = alpha.cuda() if cuda else alpha
     
     interpolated = alpha * real_data.data + (1 - alpha) * generated_data.data
     interpolated = Variable(interpolated, requires_grad=True)
-    interpolated = interpolated.cuda()
+    interpolated = interpolated.cuda() if cuda else interpolated
 
     # Calculate probability of interpolated examples
     prob_interpolated = netD(interpolated)
 
     # Calculate gradients of probabilities with respect to examples
     gradients = torch_grad(outputs=prob_interpolated, inputs=interpolated,
-                           grad_outputs=torch.ones(prob_interpolated.size()).cuda(),
+                           grad_outputs=torch.ones(prob_interpolated.size()).cuda() if cuda else torch.ones(prob_interpolated.size()),
                            create_graph=True, retain_graph=True)[0]
 
     # Gradients have shape (batch_size, num_channels, img_width, img_height),
