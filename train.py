@@ -5,6 +5,7 @@ try:
     import os
     import numpy as np
     import matplotlib
+
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     import pandas as pd
@@ -82,12 +83,13 @@ def main():
     run_name_comps = ['%iepoch' % n_epochs, 'z%s' % str(latent_dim), mtype, 'bs%i' % batch_size, run_name]
     run_name = sep_und.join(run_name_comps)
 
-    # 生成输出的文件夹
+    # 生成输出的文件夹路径
     run_dir = os.path.join(RUNS_DIR, dataset_name, run_name)  # ./runs/mnist
     data_dir = os.path.join(DATASETS_DIR, dataset_name)  # ./datasets/mnist
     imgs_dir = os.path.join(run_dir, 'images')  # ./runs/mnist/images
     models_dir = os.path.join(run_dir, 'models')  # ./runs/mnist/models
 
+    # 如果文件夹不存在创建文件夹
     os.makedirs(data_dir, exist_ok=True)
     os.makedirs(run_dir, exist_ok=True)
     os.makedirs(imgs_dir, exist_ok=True)
@@ -97,7 +99,8 @@ def main():
     x_shape = (channels, img_size, img_size)
 
     cuda = True if torch.cuda.is_available() else False
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    # 使用的gpu的id
     if cuda: torch.cuda.set_device(device_id)
 
     # Loss function
@@ -105,11 +108,12 @@ def main():
     xe_loss = torch.nn.CrossEntropyLoss()
     mse_loss = torch.nn.MSELoss()
 
-    # Initialize generator and discriminator
+    # Initialize generator and discriminator TODO 三个网络的结构
     generator = Generator_CNN(latent_dim, n_c, x_shape)
     encoder = Encoder_CNN(latent_dim, n_c)
     discriminator = Discriminator_CNN(wass_metric=wass_metric)
 
+    # 如果使用cuda 将网络结构 与 损失函数放到gpu上
     if cuda:
         generator.cuda()
         encoder.cuda()
@@ -118,9 +122,10 @@ def main():
         xe_loss.cuda()
         mse_loss.cuda()
 
+    # 如果使用GPU则转换为GPU上的张量类型
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
-    # Configure training data loader
+    # Configure training data loader TODO 自定义的DataLoader
     dataloader = get_dataloader(dataset_name=dataset_name,
                                 data_dir=data_dir,
                                 batch_size=batch_size,
@@ -131,16 +136,18 @@ def main():
     test_imgs, test_labels = next(iter(testdata))
     test_imgs = Variable(test_imgs.type(Tensor))
 
-    # 将 生成器 与 Encoder 的参数连在一起
+    # 将 生成器 与 Encoder 的参数连在一起 TODO 两个网络联合训练
     ge_chain = ichain(generator.parameters(),
                       encoder.parameters())
-    optimizer_GE = torch.optim.Adam(ge_chain, lr=lr, betas=(b1, b2), weight_decay=decay)
+    optimizer_GE = torch.optim.Adam(ge_chain, lr=lr, betas=(b1, b2),
+                                    weight_decay=decay)  # (待优化的参数， lr: 学习率， betas: (一阶矩，二阶矩)平滑函数， weight_decay: 参数的值修改偏导数)
     optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=lr, betas=(b1, b2))
     # optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=lr, betas=(b1, b2), weight_decay=decay)
 
     # ----------
     #  Training
     # ----------
+    # TODO 结合模型 确定含义
     ge_l = []
     d_l = []
     c_zn = []
@@ -150,13 +157,14 @@ def main():
     from tqdm import tqdm
     # Training loop 
     print('\nBegin training session with %i epochs...\n' % (n_epochs))
-    for epoch in tqdm(range(n_epochs)):
-        for i, (imgs, itruth_label) in tqdm(enumerate(dataloader)):
-
+    for epoch in tqdm(range(n_epochs)):  # 在epoch上迭代
+        for i, (imgs, itruth_label) in tqdm(enumerate(dataloader)):  # 在batch上迭代 TODO dataloader的返回
             # Ensure generator/encoder are trainable
+            # 训练Generator和Encoder
             generator.train()
             encoder.train()
             # Zero gradients for models
+            # 梯度清零
             generator.zero_grad()
             encoder.zero_grad()
             discriminator.zero_grad()
@@ -171,8 +179,9 @@ def main():
             optimizer_GE.zero_grad()
 
             # Sample random latent variables
+            # 随机生成噪声 (zn, zc, zc_idx) 返回的是随机生成的具有梯度的Tensor
             zn, zc, zc_idx = sample_z(shape=imgs.shape[0],
-                                      latent_dim=latent_dim,
+                                      latent_dim=latent_dim,  # 隐空间维度 用一个30dim的隐空间向量表示一个sample
                                       n_c=n_c)
 
             # Generate a batch of images

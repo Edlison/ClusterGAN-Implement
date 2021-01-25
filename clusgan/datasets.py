@@ -2,7 +2,6 @@ from __future__ import print_function
 
 try:
     import numpy as np
-    
     import torch
     import torchvision
     import torch.nn as nn
@@ -14,11 +13,9 @@ except ImportError as e:
     print(e)
     raise ImportError
 
-
-DATASET_FN_DICT = {'mnist' : datasets.MNIST,
-                   'fashion-mnist' : datasets.FashionMNIST
-                  }
-
+DATASET_FN_DICT = {'mnist': datasets.MNIST,
+                   'fashion-mnist': datasets.FashionMNIST
+                   }
 
 dataset_list = DATASET_FN_DICT.keys()
 
@@ -44,19 +41,23 @@ def get_dataset(dataset_name='mnist'):
                          'in {}'.format(dataset_name, DATASET_FN_DICT.keys()))
 
 
-
 def get_dataloader(dataset_name='mnist', data_dir='', batch_size=64, train_set=True, num_workers=1):
-
     dset = get_dataset(dataset_name)
 
     dataloader = torch.utils.data.DataLoader(
-        dset(data_dir, train=train_set, download=True,
-                       transform=transforms.Compose([
-                           transforms.ToTensor(),
-                           #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-                       ])),
+        dset(data_dir, train=train_set, download=True, transform=transforms.Compose(
+                 [
+                     transforms.ToTensor(),  # 将图片转为Tensor
+                     # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                 ]
+             )
+             ),
         num_workers=num_workers,
         batch_size=batch_size,
-        shuffle=True)
+        shuffle=True
+    )
 
+    # 返回的是一个iter
+    # batch_index, (data, label)
+    # data[batch_size, rgb, dim_x, dim_y]
     return dataloader
